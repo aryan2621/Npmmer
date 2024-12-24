@@ -1,101 +1,291 @@
-import Image from "next/image";
+'use client';
+
+import { Package } from '@/model/package';
+import { useEffect, useState } from 'react';
+import ky from 'ky';
+import Link from 'next/link';
+import { Loader2, Pencil, Trash2, Package as PackageIcon, Info, LogOut } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card';
+import { useRouter } from 'next/navigation';
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+    const { toast } = useToast();
+    const [packages, setPackages] = useState<Package[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [deleted, setDeleted] = useState(false);
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+    const [showEditDialog, setShowEditDialog] = useState(false);
+    const [showInfoDialog, setShowInfoDialog] = useState(false);
+    const [selectedPackage, setSelectedPackage] = useState<Package | null>(null);
+    const [editedReason, setEditedReason] = useState('');
+    const router = useRouter();
+    useEffect(() => {
+        const fetchPackages = async () => {
+            try {
+                setLoading(true);
+                const fetchedPackages = await ky.get('/api/packages').json<Package[]>();
+                setPackages(fetchedPackages);
+            } catch (error) {
+                console.error('Failed to fetch packages:', error);
+                toast({
+                    variant: 'destructive',
+                    title: 'Error fetching packages',
+                    description: 'Please try again later',
+                });
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchPackages();
+    }, []);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
-  );
+    const handleDelete = async (id: string) => {
+        try {
+            setDeleted(true);
+            await ky.delete(`/api/package/${id}`);
+            setPackages(packages.filter((pkg) => pkg.id !== id));
+            toast({
+                title: 'Package deleted',
+                description: 'Package has been removed from favorites',
+            });
+        } catch {
+            toast({
+                variant: 'destructive',
+                title: 'Error deleting package',
+                description: 'Please try again later',
+            });
+        } finally {
+            setDeleted(false);
+        }
+    };
+
+    const handleEdit = async () => {
+        if (!selectedPackage) return;
+
+        try {
+            await ky.put(`/api/package/${selectedPackage.id}`, {
+                json: {
+                    ...selectedPackage,
+                    reasonForBeingFavorite: editedReason,
+                },
+            });
+
+            setPackages(
+                packages.map((pkg) =>
+                    pkg.id === selectedPackage.id ? { ...pkg, reasonForBeingFavorite: editedReason } : pkg,
+                ),
+            );
+
+            setShowEditDialog(false);
+            toast({
+                title: 'Package updated',
+                description: 'Your changes have been saved',
+            });
+        } catch {
+            toast({
+                variant: 'destructive',
+                title: 'Error updating package',
+                description: 'Please try again later',
+            });
+        }
+    };
+
+    const handleLogout = async () => {
+        try {
+            await ky.post('/api/logout');
+            router.push('/login');
+        } catch {
+            toast({
+                variant: 'destructive',
+                title: 'Error logging out',
+                description: 'Please try again later',
+            });
+        }
+    };
+
+    return (
+        <main className="p-6 max-w-7xl mx-auto w-full">
+            <div className="flex justify-between items-center mb-8">
+                <div className="flex items-center gap-2">
+                    <PackageIcon className="w-6 h-6" />
+                    <h1 className="text-3xl font-bold">Favorite Packages</h1>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Button asChild>
+                        <Link href="/add">Add Package</Link>
+                    </Button>
+                    <Button variant="outline" size="icon" onClick={handleLogout}>
+                        <LogOut className="w-4 h-4" />
+                    </Button>
+                </div>
+            </div>
+
+            {loading ? (
+                <div className="flex justify-center items-center h-40">
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                </div>
+            ) : packages.length === 0 ? (
+                <Card className="text-center p-6">
+                    <CardContent>
+                        <p className="text-muted-foreground">No favorite packages yet. Add some to get started!</p>
+                    </CardContent>
+                </Card>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {packages.map((pkg) => (
+                        <Card key={pkg.name} className="relative">
+                            <CardHeader className="pb-2">
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <Badge variant="outline" className="mb-2">
+                                            {pkg.version}
+                                        </Badge>
+                                        <h2 className="text-xl font-semibold">{pkg.name}</h2>
+                                    </div>
+                                    <div className="flex gap-1">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => {
+                                                setSelectedPackage(pkg);
+                                                setShowInfoDialog(true);
+                                            }}
+                                        >
+                                            <Info className="w-4 h-4" />
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => {
+                                                setSelectedPackage(pkg);
+                                                setEditedReason(pkg.reasonForBeingFavorite);
+                                                setShowEditDialog(true);
+                                            }}
+                                        >
+                                            <Pencil className="w-4 h-4" />
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => {
+                                                setSelectedPackage(pkg);
+                                                setShowDeleteDialog(true);
+                                            }}
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </Button>
+                                    </div>
+                                </div>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-muted-foreground mb-4">{pkg.description}</p>
+                                <p className="text-sm">
+                                    <span className="font-medium">Why it's favorite: </span>
+                                    {pkg.reasonForBeingFavorite}
+                                </p>
+                            </CardContent>
+                            <CardFooter>
+                                <p className="text-sm text-muted-foreground">
+                                    Added on {new Date(pkg.date).toLocaleDateString()}
+                                </p>
+                            </CardFooter>
+                        </Card>
+                    ))}
+                </div>
+            )}
+
+            <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Delete Package</DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to delete {selectedPackage?.name}? This cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={() => {
+                                if (selectedPackage) {
+                                    handleDelete(selectedPackage.id);
+                                    setShowDeleteDialog(false);
+                                }
+                            }}
+                        >
+                            Delete
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Edit Package</DialogTitle>
+                        <DialogDescription>
+                            Update why {selectedPackage?.name} is your favorite package
+                        </DialogDescription>
+                    </DialogHeader>
+                    <Textarea
+                        value={editedReason}
+                        onChange={(e) => setEditedReason(e.target.value)}
+                        placeholder="Why is this package your favorite?"
+                        className="min-h-[100px]"
+                    />
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowEditDialog(false)}>
+                            Cancel
+                        </Button>
+                        <Button disabled={deleted} onClick={handleEdit}>
+                            Save Changes
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+            <Dialog open={showInfoDialog} onOpenChange={setShowInfoDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Package Details</DialogTitle>
+                    </DialogHeader>
+                    {selectedPackage && (
+                        <div className="space-y-4">
+                            <div>
+                                <h3 className="font-medium">Package Name</h3>
+                                <p className="text-sm text-muted-foreground">{selectedPackage.name}</p>
+                            </div>
+                            <div>
+                                <h3 className="font-medium">Version</h3>
+                                <p className="text-sm text-muted-foreground">{selectedPackage.version}</p>
+                            </div>
+                            <div>
+                                <h3 className="font-medium">Description</h3>
+                                <p className="text-sm text-muted-foreground">{selectedPackage.description}</p>
+                            </div>
+                            <div>
+                                <h3 className="font-medium">Added On</h3>
+                                <p className="text-sm text-muted-foreground">
+                                    {new Date(selectedPackage.date).toLocaleDateString()}
+                                </p>
+                            </div>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
+        </main>
+    );
 }
