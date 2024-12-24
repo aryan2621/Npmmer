@@ -192,7 +192,7 @@ export default function Home() {
                             <CardContent>
                                 <p className="text-muted-foreground mb-4">{pkg.description}</p>
                                 <p className="text-sm">
-                                    <span className="font-medium">Why it's favorite: </span>
+                                    <span className="font-medium">Why it&apos;s favorite: </span>
                                     {pkg.reasonForBeingFavorite}
                                 </p>
                             </CardContent>
