@@ -104,7 +104,7 @@ export default function Home() {
 
     const handleLogout = async () => {
         try {
-            await ky.post('/api/logout');
+            await ky.get('/api/logout');
             router.push('/login');
         } catch {
             toast({

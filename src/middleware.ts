@@ -10,7 +10,7 @@ export async function middleware(request: NextRequest) {
 
     if (token) {
         try {
-            const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+            const secret = new TextEncoder().encode(process.env.JWT_SECRET!);
             await jwtVerify(token.value, secret);
         } catch {
             const response = NextResponse.redirect(new URL('/login', request.url));
